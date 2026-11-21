@@ -14,13 +14,13 @@ Usage (top-level CMakeLists.txt, after ``project()``, before any target)::
 
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
   include(Coverage)
-  add_coverage_configuration()            # options: GLOBAL, MCDC, CLANG_GCOV
+  mz_add_coverage_configuration()            # options: GLOBAL, MCDC, CLANG_GCOV
 
   add_library(core ...)
   add_library(net ...)
-  target_enable_coverage(core net)        # instrument only what you own
+  mz_target_enable_coverage(core net)        # instrument only what you own
 
-  add_coverage_report_target(coverage
+  mz_add_coverage_report_target(coverage
       TARGETS unit_tests
       GCOVR_CONFIG cmake/gcovr.cfg.in     # optional, see below
       MSVC_CONFIG  cmake/coverage.config.in
@@ -134,18 +134,18 @@ function(_coverage_error_target name)
 endfunction()
 
 # --------------------------------------------------------------------------
-# add_coverage_configuration([LANGUAGES <lang>...] [GLOBAL] [MCDC] [CLANG_GCOV])
+# mz_add_coverage_configuration([LANGUAGES <lang>...] [GLOBAL] [MCDC] [CLANG_GCOV])
 #
 # * Registers the Coverage configuration.
 # * Gives it the same base flags as Debug.
 # * Creates the interface library coverage::options carrying the
 #   instrumentation flags (active in the Coverage configuration only).
 #
-# By default nothing is instrumented until you call target_enable_coverage().
+# By default nothing is instrumented until you call mz_target_enable_coverage().
 # With GLOBAL, the instrumentation flags are also put into
 # CMAKE_<LANG>_FLAGS_COVERAGE / CMAKE_*_LINKER_FLAGS_COVERAGE so that every
 # target in the build (including in-tree third-party code) is instrumented.
-# Do not combine GLOBAL with target_enable_coverage().
+# Do not combine GLOBAL with mz_target_enable_coverage().
 #
 # Where the compiler supports them, these are added too:
 #   -fprofile-update=prefer-atomic  (GCC, Clang) counters stay exact when
@@ -167,13 +167,13 @@ endfunction()
 # Sets in the caller's scope: COVERAGE_BACKEND (gcov | llvm | msvc) and
 # COVERAGE_MCDC.
 # --------------------------------------------------------------------------
-function(add_coverage_configuration)
+function(mz_add_coverage_configuration)
     cmake_parse_arguments(PARSE_ARGV 0 ARG "GLOBAL;MCDC;CLANG_GCOV" "" "LANGUAGES")
     if(NOT ARG_LANGUAGES)
         set(ARG_LANGUAGES C CXX)
     endif()
     if(ARG_UNPARSED_ARGUMENTS)
-        message(FATAL_ERROR "add_coverage_configuration: unknown arguments: ${ARG_UNPARSED_ARGUMENTS}")
+        message(FATAL_ERROR "mz_add_coverage_configuration: unknown arguments: ${ARG_UNPARSED_ARGUMENTS}")
     endif()
 
     # --- Register the configuration ---------------------------------------
@@ -372,7 +372,7 @@ function(add_coverage_configuration)
 endfunction()
 
 # --------------------------------------------------------------------------
-# target_enable_coverage(<target>... [PRIVATE|PUBLIC|INTERFACE])
+# mz_target_enable_coverage(<target>... [PRIVATE|PUBLIC|INTERFACE])
 #
 # Instruments each <target> in the Coverage configuration. With the default
 # PRIVATE, only <target>'s own sources are compiled with instrumentation,
@@ -388,19 +388,19 @@ endfunction()
 # The dependency is build-only ($<BUILD_INTERFACE:>), so install(EXPORT) of
 # an instrumented target works.
 # --------------------------------------------------------------------------
-function(target_enable_coverage)
+function(mz_target_enable_coverage)
     cmake_parse_arguments(PARSE_ARGV 0 ARG "PRIVATE;PUBLIC;INTERFACE" "" "")
     if(NOT TARGET coverage::options)
-        message(FATAL_ERROR "target_enable_coverage: call add_coverage_configuration() first")
+        message(FATAL_ERROR "mz_target_enable_coverage: call mz_add_coverage_configuration() first")
     endif()
     if(NOT ARG_UNPARSED_ARGUMENTS)
-        message(FATAL_ERROR "target_enable_coverage: no targets given")
+        message(FATAL_ERROR "mz_target_enable_coverage: no targets given")
     endif()
     set(scope "")
     foreach(keyword IN ITEMS PRIVATE PUBLIC INTERFACE)
         if(ARG_${keyword})
             if(scope)
-                message(FATAL_ERROR "target_enable_coverage: give only one of PRIVATE, PUBLIC, INTERFACE")
+                message(FATAL_ERROR "mz_target_enable_coverage: give only one of PRIVATE, PUBLIC, INTERFACE")
             endif()
             set(scope ${keyword})
         endif()
@@ -408,7 +408,7 @@ function(target_enable_coverage)
 
     foreach(target IN LISTS ARG_UNPARSED_ARGUMENTS)
         if(NOT TARGET ${target})
-            message(FATAL_ERROR "target_enable_coverage: '${target}' is not a target")
+            message(FATAL_ERROR "mz_target_enable_coverage: '${target}' is not a target")
         endif()
         set(target_scope "${scope}")
         if(NOT target_scope)
@@ -424,7 +424,7 @@ function(target_enable_coverage)
 endfunction()
 
 # --------------------------------------------------------------------------
-# add_coverage_report_target(<name>
+# mz_add_coverage_report_target(<name>
 #     TARGETS <target>...        # executables / shared libs to analyse
 #     [TEST_COMMAND <cmd>...]    # default: ctest -C Coverage --output-on-failure
 #     [GCOVR_CONFIG <file.in>]   # GCC: template of a gcovr config file
@@ -466,15 +466,15 @@ endfunction()
 # multi-config tree, building it in another configuration fails with a
 # message (after TARGETS are built, as the configuration is only known then).
 # --------------------------------------------------------------------------
-function(add_coverage_report_target name)
+function(mz_add_coverage_report_target name)
     cmake_parse_arguments(PARSE_ARGV 1 ARG "GENHTML"
         "OUTPUT_DIRECTORY;GCOVR_CONFIG;MSVC_CONFIG" "TARGETS;TEST_COMMAND;EXCLUDE")
 
     if(NOT COVERAGE_BACKEND)
-        message(FATAL_ERROR "add_coverage_report_target: call add_coverage_configuration() first")
+        message(FATAL_ERROR "mz_add_coverage_report_target: call mz_add_coverage_configuration() first")
     endif()
     if(NOT ARG_TARGETS)
-        message(FATAL_ERROR "add_coverage_report_target: TARGETS is required")
+        message(FATAL_ERROR "mz_add_coverage_report_target: TARGETS is required")
     endif()
     if(NOT ARG_OUTPUT_DIRECTORY)
         set(ARG_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/coverage")
@@ -484,11 +484,11 @@ function(add_coverage_report_target name)
     endif()
     if(COVERAGE_BACKEND STREQUAL "msvc")
         if(ARG_EXCLUDE)
-            message(WARNING "add_coverage_report_target(${name}): EXCLUDE is not supported "
+            message(WARNING "mz_add_coverage_report_target(${name}): EXCLUDE is not supported "
                             "by the MSVC backend - put the excludes in MSVC_CONFIG")
         endif()
         if(ARG_GENHTML)
-            message(WARNING "add_coverage_report_target(${name}): GENHTML is not supported "
+            message(WARNING "mz_add_coverage_report_target(${name}): GENHTML is not supported "
                             "by the MSVC backend (it writes Cobertura only) - ignored")
             set(ARG_GENHTML OFF)
         endif()
