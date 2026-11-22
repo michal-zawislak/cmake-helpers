@@ -1,7 +1,7 @@
 include_guard(GLOBAL)
 
 add_library(mz_compile_options INTERFACE)
-add_library(library::compile_options ALIAS mz_compile_options)
+add_library(mz::compile_options ALIAS mz_compile_options)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(mz_compile_options INTERFACE
