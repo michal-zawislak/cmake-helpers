@@ -1,6 +1,7 @@
 include_guard(GLOBAL)
 
 include(GenerateExportHeader)
+include("${CMAKE_CURRENT_LIST_DIR}/CompilerOptions.cmake")
 
 # mz_add_layer(PREFIX <prefix> LAYER <layer>)
 #
@@ -8,6 +9,9 @@ include(GenerateExportHeader)
 # applies the policy shared by all layers:
 #
 #   * C++23 and `import std;`;
+#   * mz::compile_options, linked PUBLIC: the layer is built with the project
+#     warnings, and importers compile with the same flags, so they reuse the
+#     layer's BMIs instead of CMake synthesizing a copy per consumer;
 #   * hidden symbol visibility: only declarations marked <PREFIX>_<LAYER>_EXPORT
 #     leave a shared library. The module keyword `export` controls *name*
 #     visibility for importers; it does not export *symbols* from a DSO/DLL;
@@ -37,6 +41,7 @@ function(mz_add_layer)
 
     add_library(${target})
     add_library(${ARG_PREFIX}::${ARG_LAYER} ALIAS ${target})
+    target_link_libraries(${target} PUBLIC mz::compile_options)
 
     set_target_properties(${target} PROPERTIES
         CXX_VISIBILITY_PRESET hidden
@@ -47,7 +52,7 @@ function(mz_add_layer)
     )
 
     set(include_dir "${CMAKE_CURRENT_BINARY_DIR}/include")
-    set(export_header "${include_dir}/library/${ARG_LAYER}/export.hpp")
+    set(export_header "${include_dir}/${ARG_PREFIX}/${ARG_LAYER}/export.hpp")
     generate_export_header(${target} EXPORT_FILE_NAME "${export_header}")
     target_sources(${target}
         PUBLIC
